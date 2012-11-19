@@ -59,24 +59,5 @@ void OctreeNode3f_free(OctreeNode3f *node);
  */
 int OctreeNode3f_insert(OctreeNode3f *node, Vector3f poisition, void *usrval);
 
-/* \brief Traverses a tree in preorder
- * Traverses the entire tree rooted at the specified node in preorder.
- * \param node The root of the tree to traverse
- * Not sure how to document function pointers...
- * \return 0 if an error has occured, otherwise non-zero
- */
-int OctreeNode3f_preorder(OctreeNode3f *node, 
-			  void (*f_node)(OctreeNode3f*), 
-			  void (*f_leaf)(OctreeNode3f*));
-
-/* \brief Traverses a tree in postorder
- * Traverses the entire tree rooted at the specified node in postorder.
- * \param node The root of the tree to traverse
- * Not sure how to document function pointers...
- * \return 0 if an error has occured, otherwise non-zero
- */
-int OctreeNode3f_postorder(OctreeNode3f *node, 
-			   void (*f_node)(OctreeNode3f*), 
-			   void (*f_leaf)(OctreeNode3f*));
 
 #endif

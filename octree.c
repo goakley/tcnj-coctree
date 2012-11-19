@@ -58,6 +58,8 @@ int OctreeNode3f__insert_sub(OctreeNode3f*, Vector3f, void*);
 
 int OctreeNode3f_insert(OctreeNode3f *node, Vector3f pos, void *usr_val) {
   if (!node) return 0;
+  /* if this node is empty, it will be turned into a leaf by placing the 
+     data directly inside of it */
   if (node->elements == 0) {
     node->position = malloc(sizeof(Vector3f));
     if (!(node->position))
@@ -66,17 +68,23 @@ int OctreeNode3f_insert(OctreeNode3f *node, Vector3f pos, void *usr_val) {
     node->position->y = pos.y;
     node->position->z = pos.z;
     node->usr_val = usr_val;
-  } else {
-    if (node->elements == 1) {
-      /* If this node is a leaf, take its position and place it in the 
+  }
+  /* handle a node that already contains data */
+  else {
+    /* If this node is a leaf, take its position and place it in the 
        appropriate child, no longer making this a leaf */
+    if (node->elements == 1) {
       OctreeNode3f__insert_sub(node, *(node->position), node->usr_val);
       free(node->position);
       node->position = NULL;
       node->usr_val = NULL;
     }
+    /* Since this node is occupied, recursively add the data to the 
+     appropriate child node */
     OctreeNode3f__insert_sub(node, pos, usr_val);
   }
+  /* A data point was inserted into this node, therefor the element count 
+     must be incremented*/
   (node->elements)++;
   return (node->elements);
 }
@@ -90,6 +98,7 @@ int OctreeNode3f__insert_sub(OctreeNode3f *node, Vector3f pos, void *usr_val) {
   Vector3f min = {0,0,0};
   Vector3f max = {0,0,0};
   if (pos.x > node->bounds_mid.x) {
+    /* Children 0,2,4,8 have positive x-coordinates */
     sub += 1;
     min.x = node->bounds_mid.x;
     max.x = node->bounds_top.x;
@@ -98,6 +107,7 @@ int OctreeNode3f__insert_sub(OctreeNode3f *node, Vector3f pos, void *usr_val) {
     max.x = node->bounds_mid.x;
   }
   if (pos.y > node->bounds_mid.y) {
+    /* Children 0,1,3,4 have positive y-coordinates */
     sub += 2;
     min.y = node->bounds_mid.y;
     max.y = node->bounds_top.y;
@@ -106,6 +116,7 @@ int OctreeNode3f__insert_sub(OctreeNode3f *node, Vector3f pos, void *usr_val) {
     max.y = node->bounds_mid.y;
   }
   if (pos.z > node->bounds_mid.z) {
+    /* Children 0,1,2,3 have positive z-coordinates */
     sub += 4;
     min.z = node->bounds_mid.z;
     max.z = node->bounds_top.z;
@@ -116,45 +127,4 @@ int OctreeNode3f__insert_sub(OctreeNode3f *node, Vector3f pos, void *usr_val) {
   (node->children)[sub] = OctreeNode3f_malloc(min, max);
   // (the next line naturally checks for a successful malloc)
   return OctreeNode3f_insert((node->children)[sub], pos, usr_val);
-}
-
-
-int OctreeNode3f_preorder(OctreeNode3f *node, void (*f_node)(OctreeNode3f*), void (*f_leaf)(OctreeNode3f*)) {
-  if (!node) return 0;
-  if (node->elements == 1) {
-    if (f_leaf)
-      (*f_leaf)(node);
-  } else {
-    if (f_node)
-      (*f_node)(node);
-  }
-  OctreeNode3f_preorder(node->children[0], f_node, f_leaf);
-  OctreeNode3f_preorder(node->children[1], f_node, f_leaf);
-  OctreeNode3f_preorder(node->children[2], f_node, f_leaf);
-  OctreeNode3f_preorder(node->children[3], f_node, f_leaf);
-  OctreeNode3f_preorder(node->children[4], f_node, f_leaf);
-  OctreeNode3f_preorder(node->children[5], f_node, f_leaf);
-  OctreeNode3f_preorder(node->children[6], f_node, f_leaf);
-  OctreeNode3f_preorder(node->children[7], f_node, f_leaf);
-  return 1;
-}
-
-int OctreeNode3f_postorder(OctreeNode3f *node, void (*f_node)(OctreeNode3f*), void (*f_leaf)(OctreeNode3f*)) {
-  if (!node) return 0;
-  OctreeNode3f_postorder(node->children[0], f_node, f_leaf);
-  OctreeNode3f_postorder(node->children[1], f_node, f_leaf);
-  OctreeNode3f_postorder(node->children[2], f_node, f_leaf);
-  OctreeNode3f_postorder(node->children[3], f_node, f_leaf);
-  OctreeNode3f_postorder(node->children[4], f_node, f_leaf);
-  OctreeNode3f_postorder(node->children[5], f_node, f_leaf);
-  OctreeNode3f_postorder(node->children[6], f_node, f_leaf);
-  OctreeNode3f_postorder(node->children[7], f_node, f_leaf);
-  if (node->elements == 1) {
-    if (f_leaf)
-      (*f_leaf)(node);
-  } else {
-    if (f_node)
-      (*f_node)(node);
-  }
-  return 1;
 }

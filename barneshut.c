@@ -5,35 +5,6 @@
 
 
 
-void BarnesHut_treecalc_leaf(OctreeNode3f *node) {
-  // mass already set
-  /* ensure the center of mass is set */
-  ((BarnesHutPoint*)(node->usr_val))->center_of_mass = *(node->position);
-}
-void BarnesHut_treecalc_node(OctreeNode3f *node) {
-  BarnesHutPoint *pt = (BarnesHutPoint*)(node->usr_val);
-  pt->mass = 0;
-  pt->center_of_mass.x = 0; pt->center_of_mass.y = 0; pt->center_of_mass.z = 0;
-  float child_mass;
-  Vector3f child_com;
-  for (int i = 0; i < 8; i++) {
-    if (node->children[i]) {
-      child_com = 
-	((BarnesHutPoint*)(node->children[1]->usr_val))->center_of_mass;
-      child_mass = ((BarnesHutPoint*)(node->children[i]->usr_val))->mass;
-      pt->mass += child_mass;
-      pt->center_of_mass.x += child_mass*child_com.x;
-      pt->center_of_mass.y += child_mass*child_com.y;
-      pt->center_of_mass.z += child_mass*child_com.z;
-    }
-  }
-  pt->center_of_mass.x /= pt->mass;
-  pt->center_of_mass.y /= pt->mass;
-  pt->center_of_mass.z /= pt->mass;
-}
-
-
-
 
 
 
@@ -94,32 +65,60 @@ int BarnesHut_add(BarnesHut *bh, Vector3f position, float mass) {
 }
 
 
-Vector3f BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp);
-int BarnesHut_finalize(BarnesHut *bh) {
-  if (!bh) return 0;
-  /* finalize the octree */
-  int finalized = OctreeNode3f_postorder(bh->octree_root, 
-					 &BarnesHut_treecalc_node, 
-					 &BarnesHut_treecalc_leaf);
-  if (!finalized)
-    return 0;
-  /* calculate the forces */
-  for (int i = 0; i < bh->body_count; i++) {
-    bh->bodies[i].force = BarnesHut__force(bh->octree_root, 
-					   bh->bodies[i]);
+void BarnesHut__treecalc(OctreeNode3f *node) {
+  if (!node) return;
+  /* If the node is a leaf, then its mass and COM are simply the mass and COM 
+     of its data */
+  if (node->elements == 1) {
+    ((BarnesHutPoint*)(node->usr_val))->center_of_mass = *(node->position);
   }
-  return 1;
+  /* The mass and COM can be determined from the mass and COM of the node's
+     children */
+  else {
+    BarnesHutPoint *pt = (BarnesHutPoint*)(node->usr_val);
+    pt->mass = 0;
+    pt->center_of_mass.x=0;pt->center_of_mass.y=0;pt->center_of_mass.z=0;
+    for (int i = 0; i < 8; i++) {
+      Vector3f child_com = 
+	((BarnesHutPoint*)(node->children[i]->usr_val))->center_of_mass;
+      float child_mass = ((BarnesHutPoint*)(node->children[i]->usr_val))->mass;
+      pt->mass += child_mass;
+      pt->center_of_mass.x += child_mass*child_com.x;
+      pt->center_of_mass.y += child_mass*child_com.y;
+      pt->center_of_mass.z += child_mass*child_com.z;
+    }
+    pt->center_of_mass.x /= pt->mass;
+    pt->center_of_mass.y /= pt->mass;
+    pt->center_of_mass.z /= pt->mass;
+  }
+}
+void BarnesHut_finalize(BarnesHut *bh) {
+  if (!bh) return;
+  /* Calculate the mass and COM for all the nodes in the octree */
+  BarnesHut__treecalc(bh->octree_root);
 }
 
-Vector3f BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp) {
+
+Vector3f BarnesHut_force(OctreeNode3f *node, BarnesHutPoint bhp) {
   Vector3f force = {0,0,0};
   if (!node) return force;
   BarnesHutPoint node_bhp = *(BarnesHutPoint*)(node->usr_val);
+  /* Calculate the radius between the node's COM and the point */
   float radius = 
     sqrtf(powf(node_bhp.center_of_mass.x-bhp.center_of_mass.x,2) +
 	  powf(node_bhp.center_of_mass.y-bhp.center_of_mass.y,2) +
 	  powf(node_bhp.center_of_mass.z-bhp.center_of_mass.z,2));
-  if (radius > 1.175494351e-38F) {
+  /* With a radius of 0, the point is in itself.  As general physics explodes 
+     into burning death at this point, we'll return a zero-vector instead */
+  if (radius == 0) return force;
+  /* Calculate the average width of the node's bounding area 
+     (averaging x,y,z)*/
+  float width = ((node->bounds_top.x-node->bounds_bot.x) + 
+		 (node->bounds_top.y-node->bounds_bot.y) + 
+		 (node->bounds_top.z-node->bounds_top.z)) / 3;
+  /* If the width/radius ratio is below our constant, then the node is 
+     sufficiently far away to be used as an object in force calculations */
+  if (width/radius < 0.5) {
     float radius3 = powf(radius,3);
     force.x = 6.672e11F * node_bhp.mass * bhp.mass * 
       (node_bhp.center_of_mass.x-bhp.center_of_mass.x)/radius3;
@@ -128,20 +127,16 @@ Vector3f BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp) {
     force.z = 6.672e11F * node_bhp.mass * bhp.mass * 
       (node_bhp.center_of_mass.z-bhp.center_of_mass.z)/radius3;
   }
-  if (node->elements > 1) {
-    float widthy = ((node->bounds_top.x-node->bounds_bot.x) + 
-		    (node->bounds_top.y-node->bounds_bot.y) + 
-		    (node->bounds_top.z-node->bounds_top.z)) / 3;
-    if (widthy/radius > 0.5) {
-      force.x = 0; force.y = 0; force.z = 0;
-      for (int i = 0; i < 8; i++) {
-	Vector3f child_force = {0,0,0};
-	if (node->children[i]) {
-	  child_force = BarnesHut__force(node->children[i], bhp);
-	  force.x += child_force.x;
-	  force.y += child_force.y;
-	  force.z += child_force.z;
-	}
+  /* Otherwise, the children of this node must be examined in order to 
+     calculate force */
+  else {
+    for (int i = 0; i < 8; i++) {
+      Vector3f child_force = {0,0,0};
+      if (node->children[i]) {
+	child_force = BarnesHut_force(node->children[i], bhp);
+	force.x += child_force.x;
+	force.y += child_force.y;
+	force.z += child_force.z;
       }
     }
   }
