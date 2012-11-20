@@ -2,7 +2,7 @@
 #define VECTORS_H
 
 
-/* \brief A 3-point float vector
+/*! \brief A 3-point float vector
  * A generic vector that holds 3 floating-point values (x,y,z).
  */
 typedef struct Vector3f {

@@ -4,7 +4,7 @@
 #include "vectors.h"
 
 
-/* \brief A node of an Octree
+/*! \brief A node of an Octree
  * A node that can represent any node in an Octree.  A node with no children 
  * is a leaf, and has a position attribute associated with it.  Nodes with 
  * children (non-leaves) do not have a position associated with them.
@@ -27,7 +27,7 @@ typedef struct OctreeNode3f {
 } OctreeNode3f;
 
 
-/* \brief Mallocs an OctreeNode3f
+/*! \brief Mallocs an OctreeNode3f
  * Allocates memory for an OctreeNode3f and initializes its attributes to 
  * their base value.  The bounds of this node is defined by the two arguments 
  * to this function, which define the location and size of the node's 
@@ -39,7 +39,7 @@ typedef struct OctreeNode3f {
  */
 OctreeNode3f* OctreeNode3f_malloc(Vector3f point1, Vector3f point2);
 
-/* \brief Frees an OctreeNode3f
+/*! \brief Frees an OctreeNode3f
  * Frees the memory for an OctreeNode3f as well as its children (recursively). 
  * Note that if the node contains a user-defined value, that value is 
  * NOT FREED.
@@ -47,7 +47,7 @@ OctreeNode3f* OctreeNode3f_malloc(Vector3f point1, Vector3f point2);
  */
 void OctreeNode3f_free(OctreeNode3f *node);
 
-/* \brief Inserts a position into a node
+/*! \brief Inserts a position into a node
  * Inserts a position into the OctreeNode3f.  The user can also specify a 
  * pointer to some data that will be associated with the position being 
  * inserted.

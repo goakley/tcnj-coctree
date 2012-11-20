@@ -6,7 +6,7 @@
 #include "vectors.h"
 
 
-/* \brief A mass/center_of_mass representation
+/*! \brief A mass/center_of_mass representation
  * A structure that holds the mass and center of mass for some generic thing.
  */
 typedef struct BarnesHutPoint {
@@ -16,7 +16,7 @@ typedef struct BarnesHutPoint {
 } BarnesHutPoint;
 
 
-/* \brief A BarnesHut simulation
+/*! \brief A BarnesHut simulation
  * A 3D simulation of the BarnesHut algorithm, including some number of 
  * massive objects.
  */
@@ -31,7 +31,7 @@ typedef struct BarnesHut {
 #endif
 
 
-/* \brief Allocs a BarnesHut
+/*! \brief Allocs a BarnesHut
  * Allocates and initializes a BarnesHut algorithm.  The bounding area for 
  * this algorithm will be determined by the two control points passed to this 
  * function.
@@ -42,13 +42,13 @@ typedef struct BarnesHut {
  */
 BarnesHut* BarnesHut_malloc(Vector3f bound1, Vector3f bound2);
 
-/* \brief Frees a BarnesHut
+/*! \brief Frees a BarnesHut
  * Frees the memory for a BarnesHut.
  * \param node The BarnesHut algorithm instance to free from memory.
  */
 void BarnesHut_free(BarnesHut *bh);
 
-/* \brief Adds an item to the BarnesHut instance
+/*! \brief Adds an item to the BarnesHut instance
  * Adds an item with a specified position and mass to an instance of the 
  * BarnesHut algorithm.  Duplicate positions WILL be accepted, but may 
  * cause unintended results when calculations are performed.
@@ -59,14 +59,14 @@ void BarnesHut_free(BarnesHut *bh);
  */
 int BarnesHut_add(BarnesHut *bh, Vector3f position, float mass);
 
-/* \breif Finalizes a BarnesHut instance
+/*! \breif Finalizes a BarnesHut instance
  * Performs final calculations on the items contained in the BarnesHut.  No 
  * more items may be added to the instance after this.
  * \param bh The BarnesHut instance to finalize.
  */
 void BarnesHut_finalize(BarnesHut *bh);
 
-/* \brief Calculates the force on an item
+/*! \brief Calculates the force on an item
  * Calculates the force on an item with the specified position and mass.  The 
  * BarnesHut instance MUST be finalized for this function to execute properly.
  * \param bh The BarnesHut instance to calculate force against.
