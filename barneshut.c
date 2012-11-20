@@ -99,7 +99,7 @@ void BarnesHut_finalize(BarnesHut *bh) {
 }
 
 
-Vector3f BarnesHut_force(OctreeNode3f *node, BarnesHutPoint bhp) {
+Vector3f BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp) {
   Vector3f force = {0,0,0};
   if (!node) return force;
   BarnesHutPoint node_bhp = *(BarnesHutPoint*)(node->usr_val);
@@ -141,4 +141,10 @@ Vector3f BarnesHut_force(OctreeNode3f *node, BarnesHutPoint bhp) {
     }
   }
   return force;
+}
+Vector3f BarnesHut_force(BarnesHut *bh, Vector3f position, float mass) {
+  Vector3f zero = {0,0,0};
+  if (!bh) return zero;
+  BarnesHutPoint pt = {mass, position, zero};
+  return BarnesHut__force(bh->octree_root, pt);
 }
