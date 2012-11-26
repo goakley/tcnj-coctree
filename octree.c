@@ -4,7 +4,7 @@
 
 OctreeNode3f* OctreeNode3f_malloc(Vector3f bounds1, Vector3f bounds2)
 {
-  OctreeNode3f *node = malloc(sizeof(node));
+  OctreeNode3f *node = malloc(sizeof(OctreeNode3f));
   if (!node)
     return NULL;
   /* Calculate the bounds of the node, ensuring that the minimal x, y, and z 
@@ -55,6 +55,8 @@ void OctreeNode3f_free(OctreeNode3f *node) {
 
 
 int OctreeNode3f__insert_sub(OctreeNode3f*, Vector3f, void*);
+
+#include <stdio.h>
 
 int OctreeNode3f_insert(OctreeNode3f *node, Vector3f pos, void *usr_val) {
   if (!node) return 0;
@@ -124,7 +126,8 @@ int OctreeNode3f__insert_sub(OctreeNode3f *node, Vector3f pos, void *usr_val) {
     min.z = node->bounds_bot.z;
     max.z = node->bounds_mid.z;
   }
-  (node->children)[sub] = OctreeNode3f_malloc(min, max);
+  if (!(node->children)[sub])
+    (node->children)[sub] = OctreeNode3f_malloc(min, max);
   // (the next line naturally checks for a successful malloc)
   return OctreeNode3f_insert((node->children)[sub], pos, usr_val);
 }

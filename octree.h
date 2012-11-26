@@ -57,7 +57,7 @@ void OctreeNode3f_free(OctreeNode3f *node);
  *               NULL, no data will be associated.
  * \return The number of elements inside the tree rooted at the specified node.
  */
-int OctreeNode3f_insert(OctreeNode3f *node, Vector3f poisition, void *usrval);
+int OctreeNode3f_insert(OctreeNode3f *node, Vector3f position, void *usrval);
 
 
 #endif
