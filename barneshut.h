@@ -24,6 +24,9 @@ typedef struct BarnesHut {
   BarnesHutPoint *bodies;
   unsigned int body_count;
   unsigned int body_cap;
+  BarnesHutPoint *fillers;
+  unsigned int filler_count;
+  unsigned int filler_cap;
   OctreeNode3f *octree_root;
   int finalized;
 } BarnesHut;
@@ -59,7 +62,7 @@ void BarnesHut_free(BarnesHut *bh);
  */
 int BarnesHut_add(BarnesHut *bh, Vector3f position, float mass);
 
-/*! \breif Finalizes a BarnesHut instance
+/*! \brief Finalizes a BarnesHut instance
  * Performs final calculations on the items contained in the BarnesHut.  No 
  * more items may be added to the instance after this.
  * \param bh The BarnesHut instance to finalize.

@@ -6,21 +6,28 @@
 
 
 
-
-
 BarnesHut* BarnesHut_malloc(Vector3f bound1, Vector3f bound2) {
   BarnesHut *bh = malloc(sizeof(BarnesHut));
   if (!bh)
     return NULL;
-  bh->body_cap = 8;
-  bh->bodies = malloc(sizeof(BarnesHutPoint));
+  bh->body_cap = 16;
+  bh->bodies = malloc(sizeof(BarnesHutPoint)*(bh->body_cap));
   if (!(bh->bodies)) {
     free(bh);
     return NULL;
   }
   bh->body_count = 0;
+  bh->filler_cap = 16;
+  bh->fillers = malloc(sizeof(BarnesHutPoint)*(bh->filler_cap));
+  if (!(bh->fillers)) {
+    free(bh->bodies);
+    free(bh);
+    return NULL;
+  }
+  bh->filler_count = 0;
   bh->octree_root = OctreeNode3f_malloc(bound1, bound2);
   if (!(bh->octree_root)) {
+    free(bh->fillers);
     free(bh->bodies);
     free(bh);
     return NULL;
@@ -61,6 +68,9 @@ int BarnesHut_add(BarnesHut *bh, Vector3f position, float mass) {
   Vector3f zerovector = {0,0,0};
   (bh->bodies)[bh->body_count].force = zerovector;
   bh->body_count++;
+  /* Add to the tree */
+  OctreeNode3f_insert(bh->octree_root, 
+		      position, &(bh->bodies)[bh->body_count]);
   return 1;
 }
 
@@ -75,10 +85,15 @@ void BarnesHut__treecalc(OctreeNode3f *node) {
   /* The mass and COM can be determined from the mass and COM of the node's
      children */
   else {
+    /* The node is an empty non-leaf, so add the custom data to it */
+    node->usr_val = malloc(sizeof(BarnesHutPoint));
     BarnesHutPoint *pt = (BarnesHutPoint*)(node->usr_val);
     pt->mass = 0;
     pt->center_of_mass.x=0;pt->center_of_mass.y=0;pt->center_of_mass.z=0;
     for (int i = 0; i < 8; i++) {
+      if (!node->children[i])
+	continue;
+      BarnesHut__treecalc(node->children[i]);
       Vector3f child_com = 
 	((BarnesHutPoint*)(node->children[i]->usr_val))->center_of_mass;
       float child_mass = ((BarnesHutPoint*)(node->children[i]->usr_val))->mass;
@@ -133,7 +148,7 @@ Vector3f BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp) {
     for (int i = 0; i < 8; i++) {
       Vector3f child_force = {0,0,0};
       if (node->children[i]) {
-	child_force = BarnesHut_force(node->children[i], bhp);
+	child_force = BarnesHut__force(node->children[i], bhp);
 	force.x += child_force.x;
 	force.y += child_force.y;
 	force.z += child_force.z;
