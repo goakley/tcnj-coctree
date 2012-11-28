@@ -119,11 +119,11 @@ Vector3f BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp) {
      sufficiently far away to be used as an object in force calculations */
   if (width/radius < 0.5) {
     float radius3 = powf(radius,3);
-    force.x = 6.672e11F * node_bhp.mass * bhp.mass * 
+    force.x = 6.672e-11F * node_bhp.mass * bhp.mass * 
       (node_bhp.center_of_mass.x-bhp.center_of_mass.x)/radius3;
-    force.y = 6.672e11F * node_bhp.mass * bhp.mass * 
+    force.y = 6.672e-11F * node_bhp.mass * bhp.mass * 
       (node_bhp.center_of_mass.y-bhp.center_of_mass.y)/radius3;
-    force.z = 6.672e11F * node_bhp.mass * bhp.mass * 
+    force.z = 6.672e-11F * node_bhp.mass * bhp.mass * 
       (node_bhp.center_of_mass.z-bhp.center_of_mass.z)/radius3;
   }
   /* Otherwise, the children of this node must be examined in order to 
