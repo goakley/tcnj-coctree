@@ -49,7 +49,6 @@ void update() {
     BarnesHut_add(bh, points[i].position, points[i].mass);
   puts("UPDATING");
   BarnesHut_finalize(bh);
-  /*
   for (int i = 0; i < POINTCNT; i++) {
     points[i].force = BarnesHut_force(bh, points[i].position, points[i].mass);
     points[i].acceleration.x = points[i].force.x/points[i].mass;
@@ -62,7 +61,6 @@ void update() {
     points[i].position.y += points[i].velocity.y;
     points[i].position.z += points[i].velocity.z;
   }
-  */
   BarnesHut_free(bh);
   draw();
 }
