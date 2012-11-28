@@ -5,8 +5,8 @@
 #include <GL/gl.h>
 #include "barneshut.h"
 
-#define POINTCNT 128
-#define SIZER 100
+#define POINTCNT 256
+#define SIZER 400
 
 
 
