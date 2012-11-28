@@ -6,32 +6,11 @@
 #include "vectors.h"
 
 
-/*! \brief A mass/center_of_mass representation
- * A structure that holds the mass and center of mass for some generic thing.
- */
-typedef struct BarnesHutPoint {
-  float mass;
-  Vector3f center_of_mass;
-  Vector3f force;
-} BarnesHutPoint;
-
-
 /*! \brief A BarnesHut simulation
  * A 3D simulation of the BarnesHut algorithm, including some number of 
  * massive objects.
  */
-typedef struct BarnesHut {
-  BarnesHutPoint *bodies;
-  unsigned int body_count;
-  unsigned int body_cap;
-  BarnesHutPoint *fillers;
-  unsigned int filler_count;
-  unsigned int filler_cap;
-  OctreeNode3f *octree_root;
-  int finalized;
-} BarnesHut;
-
-#endif
+typedef struct BarnesHut BarnesHut;
 
 
 /*! \brief Allocs a BarnesHut
@@ -77,3 +56,5 @@ void BarnesHut_finalize(BarnesHut *bh);
  * \param mass The mass of the item to be acted upon.
  */
 Vector3f BarnesHut_force(BarnesHut *bh, Vector3f position, float mass);
+
+#endif

@@ -3,7 +3,20 @@
 #include "barneshut.h"
 
 
+typedef struct BarnesHutPoint {
+  float mass;
+  Vector3f center_of_mass;
+  Vector3f force;
+} BarnesHutPoint;
 
+
+struct BarnesHut {
+  BarnesHutPoint *bodies;
+  unsigned int body_count;
+  unsigned int body_cap;
+  OctreeNode3f *octree_root;
+  int finalized;
+};
 
 
 BarnesHut* BarnesHut_malloc(Vector3f bound1, Vector3f bound2) {
@@ -17,17 +30,8 @@ BarnesHut* BarnesHut_malloc(Vector3f bound1, Vector3f bound2) {
     return NULL;
   }
   bh->body_count = 0;
-  bh->filler_cap = 16;
-  bh->fillers = malloc(sizeof(BarnesHutPoint)*(bh->filler_cap));
-  if (!(bh->fillers)) {
-    free(bh->bodies);
-    free(bh);
-    return NULL;
-  }
-  bh->filler_count = 0;
   bh->octree_root = OctreeNode3f_malloc(bound1, bound2);
   if (!(bh->octree_root)) {
-    free(bh->fillers);
     free(bh->bodies);
     free(bh);
     return NULL;
