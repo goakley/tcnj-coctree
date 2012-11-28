@@ -1,9 +1,50 @@
+#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <GL/glut.h>
 #include <GL/gl.h>
 #include "barneshut.h"
 
-#define POINTCNT 8
+#define POINTCNT 128
+#define SIZER 100
+
+
+
+
+
+
+void resize(int w, int h) {
+  if (h == 0)
+    h = 1;
+  float ratio =  w * 1.0 / h;
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glViewport(0, 0, w, h);
+  gluPerspective(45.0f, ratio, 0.1f, SIZER*8.0);
+  glMatrixMode(GL_MODELVIEW);
+}
+
+void keyboard(unsigned char key, int x, int y) {
+  if (key == 27) return;
+}
+
+float roty_speed = 0.005;
+
+void keys(int key, int x, int y) {
+  switch(key) {
+  case GLUT_KEY_RIGHT:
+    break;
+  case GLUT_KEY_LEFT:
+    break;
+  case GLUT_KEY_UP:
+    roty_speed *= 1.05;
+    break;
+  case GLUT_KEY_DOWN:
+    roty_speed *= 1/1.05;
+    break;
+  }
+}
+
 
 
 typedef struct {
@@ -20,43 +61,63 @@ BarnesHut *bh;
 
 
 void init();
+void glut_setup();
 void draw();
 void update();
 
 
 int main(int argc, char **argv) {
   init();
-  update();
+  glutInit(&argc, argv);
+  glut_setup();
+  glutMainLoop();
   return 0;
 }
 
 
 void init() {
   bh = NULL;
+  Vector3f zerovector = {0,0,0};
   for (int i = 0; i < POINTCNT; i++) {
-    points[i].mass = 1000.0f;
-    points[i].position.x = rand()%200-100;
-    points[i].position.y = rand()%200-100;
-    points[i].position.z = rand()%200-100;
+    points[i].mass = 5e8f;
+    points[i].position.x = rand()%(SIZER*2)-SIZER;
+    points[i].position.y = rand()%(SIZER*2)-SIZER;
+    points[i].position.z = rand()%(SIZER*2)-SIZER;
+    points[i].velocity = zerovector;
+    points[i].acceleration = zerovector;
+    points[i].force = zerovector;
   }
 }
 
+void glut_setup() {
+  glutInitWindowPosition(0,0);
+  glutInitWindowSize(640,480);
+  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+  glutCreateWindow("WINDOW");
+  glutDisplayFunc(update);
+  glutReshapeFunc(resize);
+  glutIdleFunc(update);
+  glutKeyboardFunc(keyboard);
+  glutSpecialFunc(keys);
+}
+
 void update() {
-  Vector3f min = {-100,-100,-100};
-  Vector3f max = {100,100,100};
+  Vector3f min = {-SIZER*4,-SIZER*4,-SIZER*4};
+  Vector3f max = {SIZER*4,SIZER*4,SIZER*4};
   bh = BarnesHut_malloc(min,max);
   for (int i = 0; i < POINTCNT; i++)
     BarnesHut_add(bh, points[i].position, points[i].mass);
-  puts("UPDATING");
   BarnesHut_finalize(bh);
   for (int i = 0; i < POINTCNT; i++) {
     points[i].force = BarnesHut_force(bh, points[i].position, points[i].mass);
+    //printf("%f,%f,%f\n", points[i].force.x, points[i].force.y, points[i].force.z);
     points[i].acceleration.x = points[i].force.x/points[i].mass;
     points[i].acceleration.y = points[i].force.y/points[i].mass;
     points[i].acceleration.z = points[i].force.z/points[i].mass;
     points[i].velocity.x += points[i].acceleration.x;
     points[i].velocity.y += points[i].acceleration.y;
     points[i].velocity.z += points[i].acceleration.z;
+    //printf("%f,%f,%f\n%f,%f,%f\n\n", points[i].velocity.x, points[i].velocity.y, points[i].velocity.z, points[i].position.x, points[i].position.y, points[i].position.z);
     points[i].position.x += points[i].velocity.x;
     points[i].position.y += points[i].velocity.y;
     points[i].position.z += points[i].velocity.z;
@@ -65,15 +126,43 @@ void update() {
   draw();
 }
 
+
+
+
 void draw() {
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glLoadIdentity();
+  static float roty = 0.0;
+  gluLookAt(SIZER*4.0*sin(roty), 0.0f, SIZER*4.0*cos(roty),
+	    0.0f, 0.0f, 0.0f,
+	    0.0f, 1.0f, 0.0f);
+  roty += roty_speed;
+
+  /* Draw a cube to show the bounds of the origin of the system */
+  glutWireCube(SIZER*2);
+
+  glColor3f(1.0f, 1.0f, 1.0f);
   for (int i = 0; i < POINTCNT; i++) {
-    /*
     glPushMatrix();
+    if (points[i].position.x > SIZER || points[i].position.x < -SIZER || 
+	points[i].position.y > SIZER || points[i].position.y < -SIZER || 
+	points[i].position.z > SIZER || points[i].position.z < -SIZER)
+      glColor3f(1.0f, 0.0f, 0.0f);
     glTranslatef(points[i].position.x,
 		 points[i].position.y,
 		 points[i].position.z);
-    glutSolidSphere(0.5,2,2);
+    glutSolidSphere(1,4,4);
     glPopMatrix();
-    */
+    glColor3f(1.0f, 1.0f, 1.0f);
   }
+
+  /*
+  glPushMatrix();
+  glutSolidSphere(4,16,16);
+  glPopMatrix();
+  */
+
+
+  glutSwapBuffers();
 }
