@@ -6,14 +6,10 @@
 typedef struct BarnesHutPoint {
   float mass;
   Vector3f center_of_mass;
-  Vector3f force;
 } BarnesHutPoint;
 
 
 struct BarnesHut {
-  BarnesHutPoint *bodies;
-  unsigned int body_count;
-  unsigned int body_cap;
   OctreeNode3f *octree_root;
   int finalized;
 };
@@ -23,16 +19,8 @@ BarnesHut* BarnesHut_malloc(Vector3f bound1, Vector3f bound2) {
   BarnesHut *bh = malloc(sizeof(BarnesHut));
   if (!bh)
     return NULL;
-  bh->body_cap = 16;
-  bh->bodies = malloc(sizeof(BarnesHutPoint)*(bh->body_cap));
-  if (!(bh->bodies)) {
-    free(bh);
-    return NULL;
-  }
-  bh->body_count = 0;
   bh->octree_root = OctreeNode3f_malloc(bound1, bound2);
   if (!(bh->octree_root)) {
-    free(bh->bodies);
     free(bh);
     return NULL;
   }
@@ -40,41 +28,34 @@ BarnesHut* BarnesHut_malloc(Vector3f bound1, Vector3f bound2) {
   return bh;
 }
 
+
+void BarnesHut__free(OctreeNode3f *node) {
+  if (!node) return;
+  free(node->usr_val);
+  BarnesHut__free(node->children[0]);
+  BarnesHut__free(node->children[1]);
+  BarnesHut__free(node->children[2]);
+  BarnesHut__free(node->children[3]);
+  BarnesHut__free(node->children[4]);
+  BarnesHut__free(node->children[5]);
+  BarnesHut__free(node->children[6]);
+  BarnesHut__free(node->children[7]);
+}
 void BarnesHut_free(BarnesHut *bh) {
+  BarnesHut__free(bh->octree_root);
   OctreeNode3f_free(bh->octree_root);
-  free(bh->bodies);
   free(bh);
 }
 
 
 int BarnesHut_add(BarnesHut *bh, Vector3f position, float mass) {
   if (!bh) return 0;
-  if ((bh->body_count) == (bh->body_cap)) {
-    unsigned int test_cap = (bh->body_cap)*2;
-    BarnesHutPoint *temp = NULL;
-    /* repeadedly attempt to make room for new bodies (asking for less room
-       each time */
-    while (test_cap > 2) {
-      temp = realloc(bh->bodies, sizeof(BarnesHutPoint)*test_cap);
-      if (temp) {
-	bh->bodies = temp;
-	break;
-      }
-      test_cap /= 2;
-    }
-    /* return 0 if unable to allocate more room for bodies */
-    if (!temp)
-      return 0;
-    bh->body_cap = test_cap;
-  }
-  (bh->bodies)[bh->body_count].mass = mass;
-  // center of mass will be set when finalizing the tree; not setting now
-  Vector3f zerovector = {0,0,0};
-  (bh->bodies)[bh->body_count].force = zerovector;
-  bh->body_count++;
+  BarnesHutPoint *bhp = malloc(sizeof(BarnesHutPoint));
+  if (!bhp) return 0;
+  bhp->mass = mass;
+  bhp->center_of_mass = position;
   /* Add to the tree */
-  OctreeNode3f_insert(bh->octree_root, 
-		      position, &(bh->bodies)[bh->body_count]);
+  OctreeNode3f_insert(bh->octree_root, position, bhp);
   return 1;
 }
 
@@ -82,10 +63,9 @@ int BarnesHut_add(BarnesHut *bh, Vector3f position, float mass) {
 void BarnesHut__treecalc(OctreeNode3f *node) {
   if (!node) return;
   /* If the node is a leaf, then its mass and COM are simply the mass and COM 
-     of its data */
-  if (node->elements == 1) {
-    ((BarnesHutPoint*)(node->usr_val))->center_of_mass = *(node->position);
-  }
+     of its data, which were stored when the data was added */
+  if (node->elements == 1)
+    return;
   /* The mass and COM can be determined from the mass and COM of the node's
      children */
   else {
@@ -164,6 +144,6 @@ Vector3f BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp) {
 Vector3f BarnesHut_force(BarnesHut *bh, Vector3f position, float mass) {
   Vector3f zero = {0,0,0};
   if (!bh) return zero;
-  BarnesHutPoint pt = {mass, position, zero};
+  BarnesHutPoint pt = {mass, position};
   return BarnesHut__force(bh->octree_root, pt);
 }
