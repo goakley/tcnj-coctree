@@ -7,8 +7,9 @@
 
 
 #define POINTCNT 256
-#define SIZER 400
-#define MASS 5e9
+#define SIZER 200
+#define MASS 1e9
+#define OBJRAD 1
 
 
 void resize(int w, int h) {
@@ -46,6 +47,21 @@ void keys(int key, int x, int y) {
   }
 }
 
+float calculateFPS() {
+    static unsigned int frameCount = 0;
+    static int previoustime = 0;
+    static float fps = 0;
+    frameCount++;
+    int gluttime =  glutGet(GLUT_ELAPSED_TIME);
+    int timeinterval = gluttime - previoustime;
+    if (timeinterval > 1000) {
+        fps = frameCount / (timeinterval / 1000.0f);
+        previoustime = gluttime;
+        frameCount = 0;
+        printf("%f\n", fps);
+    }
+    return fps;
+}
 
 
 typedef struct {
@@ -79,7 +95,7 @@ int main(int argc, char **argv) {
 void init() {
   bh = NULL;
   Vector3f zerovector = {0,0,0};
-  points[0].mass = MASS*10.0;
+  points[0].mass = MASS*2.0;
   points[0].position = zerovector;
   points[0].velocity = zerovector;
   points[0].acceleration = zerovector;
@@ -129,6 +145,7 @@ void update() {
   }
   BarnesHut_free(bh);
   draw();
+  calculateFPS();
 }
 
 
@@ -157,7 +174,7 @@ void draw() {
     glTranslatef(points[i].position.x,
 		 points[i].position.y,
 		 points[i].position.z);
-    glutSolidSphere(1,4,4);
+    glutSolidSphere(OBJRAD,3,3);
     glPopMatrix();
     glColor3f(1.0f, 1.0f, 1.0f);
   }
