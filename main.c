@@ -6,10 +6,10 @@
 #include "barneshut.h"
 
 
-#define POINTCNT 256
-#define SIZER 200
-#define MASS 1e9
-#define OBJRAD 1
+#define POINTCNT 512
+//#define SIZER (150e6)
+#define SIZER 1e7
+#define MASS 6e24
 
 
 void resize(int w, int h) {
@@ -19,12 +19,16 @@ void resize(int w, int h) {
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   glViewport(0, 0, w, h);
-  gluPerspective(45.0f, ratio, 0.1f, SIZER*8.0);
+  gluPerspective(45.0f, ratio, 0.1f, SIZER*32.0);
   glMatrixMode(GL_MODELVIEW);
 }
 
+int bodysize = SIZER*0.01;
+
 void keyboard(unsigned char key, int x, int y) {
   if (key == 27) exit(EXIT_SUCCESS);
+  if (key == 43 || key == 61) bodysize += SIZER*0.01;
+  if (key == 45 || key == 95) bodysize -= SIZER*0.01;
 }
 
 float roty_speed = 0.005;
@@ -94,18 +98,20 @@ int main(int argc, char **argv) {
 
 void init() {
   bh = NULL;
-  Vector3f zerovector = {0,0,0};
-  points[0].mass = MASS*2.0;
-  points[0].position = zerovector;
-  points[0].velocity = zerovector;
-  points[0].acceleration = zerovector;
-  points[0].force = zerovector;
-  for (int i = 1; i < POINTCNT; i++) {
+  Vector3f zerovector = {0,0,0.5};
+  //points[0].mass = 2e30;
+  //points[0].position = zerovector;
+  //points[0].velocity = zerovector;
+  //points[0].acceleration = zerovector;
+  //points[0].force = zerovector;
+  for (int i = 0; i < POINTCNT; i++) {
     points[i].mass = MASS;
-    points[i].position.x = rand()%(SIZER*2)-SIZER;
-    points[i].position.y = rand()%(SIZER*2)-SIZER;
-    points[i].position.z = rand()%(SIZER*2)-SIZER;
-    points[i].velocity = zerovector;
+    points[i].position.x = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
+    points[i].position.y = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
+    points[i].position.z = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
+    points[i].velocity.x = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
+    points[i].velocity.y = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
+    points[i].velocity.z = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
     points[i].acceleration = zerovector;
     points[i].force = zerovector;
   }
@@ -123,15 +129,21 @@ void glut_setup() {
   glutSpecialFunc(keys);
 }
 
+
+Vector3f min = {-SIZER*4,-SIZER*4,-SIZER*4};
+Vector3f max = {SIZER*4,SIZER*4,SIZER*4};
+
+
 void update() {
-  Vector3f min = {-SIZER*4,-SIZER*4,-SIZER*4};
-  Vector3f max = {SIZER*4,SIZER*4,SIZER*4};
+  //printf("%f %f %f\n%f %f %f\n", min.x, min.y, min.z, max.x, max.y, max.z);
   bh = BarnesHut_malloc(min,max);
+  min.x = min.y = min.z = 0;
+  max.x = max.y = max.z = 0;
   for (int i = 0; i < POINTCNT; i++)
     BarnesHut_add(bh, points[i].position, points[i].mass);
   BarnesHut_finalize(bh);
-  points[0].position.x = points[0].position.y = points[0].position.z = 0;
-  for (int i = 1; i < POINTCNT; i++) {
+  //points[0].position.x = points[0].position.y = points[0].position.z = 0;
+  for (int i = 0; i < POINTCNT; i++) {
     points[i].force = BarnesHut_force(bh, points[i].position, points[i].mass);
     points[i].acceleration.x = points[i].force.x/points[i].mass;
     points[i].acceleration.y = points[i].force.y/points[i].mass;
@@ -140,8 +152,14 @@ void update() {
     points[i].velocity.y += points[i].acceleration.y;
     points[i].velocity.z += points[i].acceleration.z;
     points[i].position.x += points[i].velocity.x;
+    if (points[i].position.x < min.x) min.x = points[i].position.x;
+    if (points[i].position.x > max.x) max.x = points[i].position.x;
     points[i].position.y += points[i].velocity.y;
+    if (points[i].position.y < min.y) min.y = points[i].position.y;
+    if (points[i].position.y > max.y) max.y = points[i].position.y;
     points[i].position.z += points[i].velocity.z;
+    if (points[i].position.z < min.z) min.z = points[i].position.z;
+    if (points[i].position.z > max.z) max.z = points[i].position.z;
   }
   BarnesHut_free(bh);
   draw();
@@ -171,20 +189,21 @@ void draw() {
 	points[i].position.y > SIZER || points[i].position.y < -SIZER || 
 	points[i].position.z > SIZER || points[i].position.z < -SIZER)
       glColor3f(1.0f, 0.0f, 0.0f);
+    else {
+      float color = 1-(points[i].position.x+points[i].position.y+points[i].position.z) / (SIZER*3);
+      glColor3f(1.0f, color, color);
+      glColor3f(1.0f,1.0f,1.0f);
+    }
+    //if (i == 0)
+    //  glColor3f(0.5f, 0.5f, 1.0f);
     glTranslatef(points[i].position.x,
 		 points[i].position.y,
 		 points[i].position.z);
-    glutSolidSphere(OBJRAD,3,3);
+    glutSolidSphere(bodysize,3,3);
     glPopMatrix();
     glColor3f(1.0f, 1.0f, 1.0f);
   }
 
-  /*
-  glPushMatrix();
-  glutSolidSphere(4,16,16);
-  glPopMatrix();
-  */
-
-
   glutSwapBuffers();
+
 }
