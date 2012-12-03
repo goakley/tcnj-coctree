@@ -1,8 +1,6 @@
 #ifndef OCTREE_H
 #define OCTREE_H
 
-#include "vectors.h"
-
 
 /*! \brief A node of an Octree
  * A node that can represent any node in an Octree.  A node with no children 
@@ -16,14 +14,26 @@ typedef struct OctreeNode3f {
   unsigned int elements;
   /* Stores a pointer to user-defined data (NOT a copy of it) for this node */
   void *usr_val;
-  /* A pointer to the position contained by this node IF this is a leaf */
-  Vector3f *position;
-  /* The minimal coordinate for the bounds covered by this node */
-  Vector3f bounds_bot;
-  /* The midpoint coordinate for the bounds covered by this node */
-  Vector3f bounds_mid;
-  /* The minimal coordinate for the bounds covered by this node */
-  Vector3f bounds_top;
+  ///* A pointer to the position contained by this node IF this is a leaf */
+  //Vector3f *position;
+  float position_x;
+  float position_y;
+  float position_z;
+  ///* The minimal coordinate for the bounds covered by this node */
+  //Vector3f bounds_bot;
+  float bound_bot_x;
+  float bound_bot_y;
+  float bound_bot_z;
+  ///* The midpoint coordinate for the bounds covered by this node */
+  //Vector3f bounds_mid;
+  float bound_mid_x;
+  float bound_mid_y;
+  float bound_mid_z;
+  ///* The minimal coordinate for the bounds covered by this node */
+  //Vector3f bounds_top;
+  float bound_top_x;
+  float bound_top_y;
+  float bound_top_z;
 } OctreeNode3f;
 
 
@@ -32,12 +42,17 @@ typedef struct OctreeNode3f {
  * their base value.  The bounds of this node is defined by the two arguments 
  * to this function, which define the location and size of the node's 
  * bounding cuboid.
- * \param point1 A point that defines the bounding cuboid for this node.
- * \param point2 A point that defines the bounding cuboid for this node.
+ * \param bound_x1 One of two x-coordinates for the system bounds
+ * \param bound_y1 One of two y-coordinates for the system bounds
+ * \param bound_z1 One of two z-coordinates for the system bounds
+ * \param bound_x2 One of two x-coordinates for the system bounds
+ * \param bound_y1 One of two y-coordinates for the system bounds
+ * \param bound_z1 One of two z-coordinates for the system bounds
  * \return A malloced OctreeNode3f; NULL if there was no room in memory for 
  *         the node.
  */
-OctreeNode3f* OctreeNode3f_malloc(Vector3f point1, Vector3f point2);
+OctreeNode3f* OctreeNode3f_malloc(float bound_x1,float bound_y1,float bound_z1,
+				  float bound_x2,float bound_y2,float bound_z2);
 
 /*! \brief Frees an OctreeNode3f
  * Frees the memory for an OctreeNode3f as well as its children (recursively). 
@@ -52,12 +67,15 @@ void OctreeNode3f_free(OctreeNode3f *node);
  * pointer to some data that will be associated with the position being 
  * inserted.
  * \param node The root of the tree in which to insert the poisition.
- * \param position The position to insert into the tree.
+ * \param x The x value of the coordinate to insert into the tree.
+ * \param y The y value of the coordinate to insert into the tree.
+ * \param z The z value of the coordinate to insert into the tree.
  * \param usrval The user value to associate with the specified position.  If 
  *               NULL, no data will be associated.
  * \return The number of elements inside the tree rooted at the specified node.
  */
-int OctreeNode3f_insert(OctreeNode3f *node, Vector3f position, void *usrval);
+int OctreeNode3f_insert(OctreeNode3f *node, float x, float y, float z,
+			void *usrval);
 
 
 #endif

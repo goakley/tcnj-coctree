@@ -263,9 +263,9 @@ void init() {
     position_x[i] = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
     position_y[i] = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
     position_z[i] = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
-    velocity_x[i] = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
-    velocity_y[i] = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
-    velocity_z[i] = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
+    velocity_x[i] = 0.0f;//(rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
+    velocity_y[i] = 0.0f;//(rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
+    velocity_z[i] = 0.0f;//(rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
     force_x[i] = force_y[i] = force_z[i] = 0.0f;
   }
 #ifdef OPEN_CL_FLAG
@@ -410,8 +410,6 @@ void update() {
 			bound_max_x,bound_max_y,bound_max_z);
   for (int i = 0; i < POINTCNT; i++) {
     BarnesHut_add(bh, position_x[i], position_y[i], position_z[i], mass[i]);
-    /*BarnesHut_add(bh, (Vector3f){position_x[i],position_y[i],position_z[i]}, 
-      mass[i]);*/
   }
   BarnesHut_finalize(bh);
   /* Clear the bounds of the system; they will be recalculated */

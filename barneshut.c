@@ -22,9 +22,7 @@ BarnesHut* BarnesHut_malloc(float minx, float miny, float minz,
   BarnesHut *bh = malloc(sizeof(BarnesHut));
   if (!bh)
     return NULL;
-  Vector3f bound1 = {minx, miny, minz};
-  Vector3f bound2 = {maxx, maxy, maxz};
-  bh->octree_root = OctreeNode3f_malloc(bound1, bound2);
+  bh->octree_root = OctreeNode3f_malloc(minx,miny,minz,maxx,maxy,maxz);
   if (!(bh->octree_root)) {
     free(bh);
     return NULL;
@@ -62,7 +60,7 @@ int BarnesHut_add(BarnesHut *bh, float x, float y, float z, float mass) {
   bhp->com_y = y;
   bhp->com_z = z;
   /* Add to the tree */
-  OctreeNode3f_insert(bh->octree_root, (Vector3f){x,y,z}, bhp);
+  OctreeNode3f_insert(bh->octree_root, x,y,z, bhp);
   return 1;
 }
 
@@ -86,14 +84,11 @@ void BarnesHut__treecalc(OctreeNode3f *node) {
 	continue;
       BarnesHut__treecalc(node->children[i]);
       BarnesHutPoint *child_pt = (BarnesHutPoint*)node->children[i]->usr_val;
-      float child_x = child_pt->com_x;
-      float child_y = child_pt->com_y;
-      float child_z = child_pt->com_z;
       float child_mass = child_pt->mass;
       pt->mass += child_mass;
-      pt->com_x += child_mass*child_x;
-      pt->com_y += child_mass*child_y;
-      pt->com_z += child_mass*child_z;
+      pt->com_x += child_mass*(child_pt->com_x);
+      pt->com_y += child_mass*(child_pt->com_y);
+      pt->com_z += child_mass*(child_pt->com_z);
     }
     pt->com_x /= pt->mass;
     pt->com_y /= pt->mass;
@@ -122,9 +117,9 @@ int BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp,
   if (radius == 0) return 1;
   /* Calculate the average width of the node's bounding area 
      (averaging x,y,z)*/
-  float width = ((node->bounds_top.x-node->bounds_bot.x) + 
-		 (node->bounds_top.y-node->bounds_bot.y) + 
-		 (node->bounds_top.z-node->bounds_top.z)) / 3;
+  float width = ((node->bound_top_x-node->bound_bot_x) + 
+		 (node->bound_top_y-node->bound_bot_y) + 
+		 (node->bound_top_z-node->bound_bot_z)) / 3;
   /* If the width/radius ratio is below our constant, then the node is 
      sufficiently far away to be used as an object in force calculations */
   if (width/radius < 0.5) {
