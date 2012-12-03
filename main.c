@@ -37,9 +37,9 @@ const char *KERNEL_velocity = "__kernel void calc_velocity("		\
   "  {\n"								\
   "    int i = get_global_id(0);"					\
   "    if (i >= count) return;\n"					\
-  "    velocity_x[i] = velocity_x[i] + force_x[i]/mass[i];\n"		\
-  "    velocity_y[i] = velocity_y[i] + force_y[i]/mass[i];\n"		\
-  "    velocity_z[i] = velocity_z[i] + force_z[i]/mass[i];\n"		\
+  "    velocity_x[i] += force_x[i]/mass[i];\n"				\
+  "    velocity_y[i] += force_y[i]/mass[i];\n"				\
+  "    velocity_z[i] += force_z[i]/mass[i];\n"				\
   "  }\n";
 
 const char *KERNEL_position = "__kernel void calc_position("		\
@@ -58,8 +58,7 @@ const char *KERNEL_position = "__kernel void calc_position("		\
   "    position_z[i] = position_y[i] + velocity_z[i];\n"		\
   "  }\n";
 
-const char *kernel_all = "\n"						\
-  "__kernel void calcforce("						\
+const char *kernel_calc = "__kernel void calcforce("			\
   "  __global float* mass,"						\
   "  __global float* force_x,"						\
   "  __global float* force_y,"						\
@@ -73,15 +72,13 @@ const char *kernel_all = "\n"						\
   "  const unsigned int count)\n"					\
   "  {\n"								\
   "    int i = get_global_id(0);"					\
-  "    if (i < count){\n"						\
-  "      //velocity_x[i] = velocity_x[i] + force_x[i]/mass[i];\n"	\
-  "      //velocity_y[i] = velocity_y[i] + force_y[i]/mass[i];\n"	\
-  "      //velocity_z[i] = velocity_z[i] + force_z[i]/mass[i];\n"	\
-  "      //position_x[i] = velocity_x[i];\n"				\
-  "      //position_y[i] = velocity_y[i];\n"				\
-  "      //position_z[i] = velocity_z[i];\n"				\
-  "      //position_x[i] = force_x[i];\n"				\
-  "    }\n"								\
+  "    if (i >= count) return;\n"					\
+  "    velocity_x[i] += force_x[i]/mass[i];\n"			\
+  "    velocity_y[i] += force_y[i]/mass[i];\n"			\
+  "    velocity_z[i] += force_z[i]/mass[i];\n"			\
+  "    position_x[i] += velocity_x[i];\n"				\
+  "    position_y[i] += velocity_y[i];\n"				\
+  "    position_z[i] += velocity_z[i];\n"				\
   "  }\n";
 
 
@@ -265,8 +262,25 @@ cl_context context;
 cl_command_queue command_queue;
 cl_program program_velocity;
 cl_kernel kernel_velocity;
+size_t kernel_velocity_local;
+size_t kernel_velocity_global;
+cl_mem cl_velocity_mass;
+cl_mem cl_velocity_force_x;
+cl_mem cl_velocity_force_y;
+cl_mem cl_velocity_force_z;
+cl_mem cl_velocity_velocity_x;
+cl_mem cl_velocity_velocity_y;
+cl_mem cl_velocity_velocity_z;
 cl_program program_position;
 cl_kernel kernel_position;
+size_t kernel_position_local;
+size_t kernel_position_global;
+cl_mem cl_position_velocity_x;
+cl_mem cl_position_velocity_y;
+cl_mem cl_position_velocity_z;
+cl_mem cl_position_position_x;
+cl_mem cl_position_position_y;
+cl_mem cl_position_position_z;
 #endif
 
 void init() {
@@ -328,6 +342,52 @@ void init() {
       cl_printerr(error);
       break;
     }
+    kernel_velocity = clCreateKernel(program_velocity, "calc_velocity", &error);
+    if (error != CL_SUCCESS) {
+      fprintf(stderr, "Unable to create kernel_velocity, with error:");
+      cl_printerr(error);
+    }
+    clGetKernelWorkGroupInfo(kernel_velocity, device, 
+			     CL_KERNEL_WORK_GROUP_SIZE, 
+			     sizeof(kernel_velocity_local), 
+			     &kernel_velocity_local, NULL);
+    if (kernel_velocity_local > POINTCNT) kernel_velocity_local = POINTCNT;
+    kernel_velocity_global = POINTCNT % kernel_velocity_local;
+    if (kernel_velocity_global == 0)
+      kernel_velocity_global = POINTCNT;
+    else
+      kernel_velocity_global = 
+	kernel_velocity_local + POINTCNT - kernel_velocity_global;
+    printf("%d %d\n", kernel_velocity_local, kernel_velocity_global);
+    cl_velocity_mass = clCreateBuffer(context, CL_MEM_READ_ONLY,
+				      sizeof(cl_float)*POINTCNT, 
+				      NULL, NULL);
+    cl_velocity_force_x = clCreateBuffer(context, CL_MEM_READ_ONLY,
+					 sizeof(cl_float)*POINTCNT,
+					 NULL, NULL);
+    cl_velocity_force_y = clCreateBuffer(context, CL_MEM_READ_ONLY,
+					 sizeof(cl_float)*POINTCNT,
+					 NULL, NULL);
+    cl_velocity_force_z = clCreateBuffer(context, CL_MEM_READ_ONLY, 
+					 sizeof(cl_float)*POINTCNT,
+					 NULL, NULL);
+    cl_velocity_velocity_x = clCreateBuffer(context, CL_MEM_READ_WRITE,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    cl_velocity_velocity_y = clCreateBuffer(context, CL_MEM_READ_WRITE,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    cl_velocity_velocity_z = clCreateBuffer(context, CL_MEM_READ_WRITE,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    clSetKernelArg(kernel_velocity, 0, sizeof(cl_mem), &cl_velocity_mass);
+    clSetKernelArg(kernel_velocity, 1, sizeof(cl_mem), &cl_velocity_force_x);
+    clSetKernelArg(kernel_velocity, 2, sizeof(cl_mem), &cl_velocity_force_y);
+    clSetKernelArg(kernel_velocity, 3, sizeof(cl_mem), &cl_velocity_force_z);
+    clSetKernelArg(kernel_velocity, 4, sizeof(cl_mem), &cl_velocity_velocity_x);
+    clSetKernelArg(kernel_velocity, 5, sizeof(cl_mem), &cl_velocity_velocity_y);
+    clSetKernelArg(kernel_velocity, 6, sizeof(cl_mem), &cl_velocity_velocity_z);
+    clSetKernelArg(kernel_velocity, 7, sizeof(cl_int), &POINT_COUNT);
     program_position = clCreateProgramWithSource(context, 1, 
 						 &KERNEL_position,
 						 NULL, &error);
@@ -340,25 +400,70 @@ void init() {
       fprintf(stderr, "Unable to build program_position, with error:");
       cl_printerr(error);
     }
-    kernel_velocity = clCreateKernel(program_velocity, "calc_velocity", &error);
-    if (error != CL_SUCCESS) {
-      fprintf(stderr, "Unable to create kernel_velocity, with error:");
-      cl_printerr(error);
-    }
     kernel_position = clCreateKernel(program_position, "calc_position", &error);
     if (error != CL_SUCCESS) {
       fprintf(stderr, "Unable to create kernel_position, with error:");
       cl_printerr(error);
     }
+    clGetKernelWorkGroupInfo(kernel_position, device, 
+			     CL_KERNEL_WORK_GROUP_SIZE, 
+			     sizeof(kernel_position_local), 
+			     &kernel_position_local, NULL);
+    if (kernel_position_local > POINTCNT) kernel_position_local = POINTCNT;
+    kernel_position_global = POINTCNT % kernel_position_local;
+    if (kernel_position_global == 0)
+      kernel_position_global = POINTCNT;
+    else
+      kernel_position_global = 
+	kernel_position_local + POINTCNT - kernel_position_global;
+    printf("%d %d\n", kernel_position_local, kernel_position_global);
+    cl_position_velocity_x = clCreateBuffer(context, CL_MEM_READ_ONLY,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    cl_position_velocity_y = clCreateBuffer(context, CL_MEM_READ_ONLY,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    cl_position_velocity_z = clCreateBuffer(context, CL_MEM_READ_ONLY,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    cl_position_position_x = clCreateBuffer(context, CL_MEM_READ_WRITE,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    cl_position_position_y = clCreateBuffer(context, CL_MEM_READ_WRITE,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    cl_position_position_z = clCreateBuffer(context, CL_MEM_READ_WRITE,
+					    sizeof(cl_float)*POINTCNT,
+					    NULL, NULL);
+    clSetKernelArg(kernel_position, 0, sizeof(cl_mem), &cl_position_velocity_x);
+    clSetKernelArg(kernel_position, 1, sizeof(cl_mem), &cl_position_velocity_y);
+    clSetKernelArg(kernel_position, 2, sizeof(cl_mem), &cl_position_velocity_z);
+    clSetKernelArg(kernel_position, 3, sizeof(cl_mem), &cl_position_position_x);
+    clSetKernelArg(kernel_position, 4, sizeof(cl_mem), &cl_position_position_y);
+    clSetKernelArg(kernel_position, 5, sizeof(cl_mem), &cl_position_position_z);
+    clSetKernelArg(kernel_position, 6, sizeof(cl_int), &POINT_COUNT);
   } while (0);
 #endif
 }
 void deinit() {
 #ifdef OPEN_CL_FLAG
-  clReleaseKernel(kernel_position);
+  clReleaseMemObject(cl_velocity_mass);
+  clReleaseMemObject(cl_velocity_force_x);
+  clReleaseMemObject(cl_velocity_force_y);
+  clReleaseMemObject(cl_velocity_force_z);
+  clReleaseMemObject(cl_velocity_velocity_x);
+  clReleaseMemObject(cl_velocity_velocity_y);
+  clReleaseMemObject(cl_velocity_velocity_z);
   clReleaseKernel(kernel_velocity);
-  clReleaseProgram(program_position);
   clReleaseProgram(program_velocity);
+  clReleaseMemObject(cl_position_velocity_x);
+  clReleaseMemObject(cl_position_velocity_y);
+  clReleaseMemObject(cl_position_velocity_z);
+  clReleaseMemObject(cl_position_position_x);
+  clReleaseMemObject(cl_position_position_y);
+  clReleaseMemObject(cl_position_position_z);
+  clReleaseKernel(kernel_position);
+  clReleaseProgram(program_position);
   clReleaseCommandQueue(command_queue);
   clReleaseContext(context);
 #endif
@@ -395,7 +500,7 @@ void update() {
   for (int i = 0; i < POINTCNT; i++) {
     Vector3f force = BarnesHut_force(bh, (Vector3f){position_x[i],position_y[i],position_z[i]}, mass[i]);
     force_x[i] = force.x; force_y[i] = force.y; force_z[i] = force.z;
-    /*
+#ifndef OPEN_CL_FLAG
     float acceleration_x = force_x[i]/mass[i];
     float acceleration_y = force_y[i]/mass[i];
     float acceleration_z = force_z[i]/mass[i];
@@ -411,81 +516,63 @@ void update() {
     position_z[i] += velocity_z[i];
     if (position_z[i] < min.z) min.z = position_z[i];
     if (position_z[i] > max.z) max.z = position_z[i];
-    */
+#endif
   }
   BarnesHut_free(bh);
   bh = NULL;
 #ifdef OPEN_CL_FLAG
   // GPU
-  cl_mem cl_mass = clCreateBuffer(context, CL_MEM_READ_ONLY,
-				  sizeof(cl_float)*POINTCNT, NULL, NULL);
-  cl_mem cl_force_x = clCreateBuffer(context, CL_MEM_READ_ONLY,
-				     sizeof(cl_float)*POINTCNT, NULL, NULL);
-  cl_mem cl_force_y = clCreateBuffer(context, CL_MEM_READ_ONLY,
-				     sizeof(cl_float)*POINTCNT, NULL, NULL);
-  cl_mem cl_force_z = clCreateBuffer(context, CL_MEM_READ_ONLY, 
-				     sizeof(cl_float)*POINTCNT, NULL, NULL);
-  cl_mem cl_velocity_x = clCreateBuffer(context, CL_MEM_READ_WRITE,
-					sizeof(cl_float)*POINTCNT, NULL, NULL);
-  cl_mem cl_velocity_y = clCreateBuffer(context, CL_MEM_READ_WRITE,
-					sizeof(cl_float)*POINTCNT, NULL, NULL);
-  cl_mem cl_velocity_z = clCreateBuffer(context, CL_MEM_READ_WRITE,
-					sizeof(cl_float)*POINTCNT, NULL, NULL);
-  clSetKernelArg(kernel_velocity, 0, sizeof(cl_mem), &cl_mass);
-  clSetKernelArg(kernel_velocity, 1, sizeof(cl_mem), &cl_force_x);
-  clSetKernelArg(kernel_velocity, 2, sizeof(cl_mem), &cl_force_y);
-  clSetKernelArg(kernel_velocity, 3, sizeof(cl_mem), &cl_force_z);
-  clSetKernelArg(kernel_velocity, 4, sizeof(cl_mem), &cl_velocity_x);
-  clSetKernelArg(kernel_velocity, 5, sizeof(cl_mem), &cl_velocity_y);
-  clSetKernelArg(kernel_velocity, 6, sizeof(cl_mem), &cl_velocity_z);
-  clSetKernelArg(kernel_velocity, 7, sizeof(cl_int), &POINT_COUNT);
-  size_t size_local;
-  clGetKernelWorkGroupInfo(kernel_velocity, device, CL_KERNEL_WORK_GROUP_SIZE, 
-  			   sizeof(size_local), &size_local, NULL);
-  if (size_local > POINTCNT) size_local = POINTCNT;
-  size_t size_global = POINTCNT % size_local;
-  if (size_global == 0)
-    size_global = POINTCNT;
-  else
-    size_global = size_local + POINTCNT - size_global;
-  //printf("%d %d\n", size_local, size_global);
-  clEnqueueWriteBuffer(command_queue, cl_mass, CL_FALSE, 0,
+  // velocity
+  clEnqueueWriteBuffer(command_queue, cl_velocity_mass, CL_FALSE, 0,
 		       sizeof(cl_float)*POINTCNT, mass, 0, NULL, NULL);
-  clEnqueueWriteBuffer(command_queue, cl_force_x, CL_FALSE, 0,
-		       sizeof(cl_float)*size_global, force_x, 0, NULL, NULL);
-  clEnqueueWriteBuffer(command_queue, cl_force_y, CL_FALSE, 0,
-		       sizeof(cl_float)*size_global, force_y, 0, NULL, NULL);
-  clEnqueueWriteBuffer(command_queue, cl_force_z, CL_FALSE, 0,
-		       sizeof(cl_float)*size_global, force_z, 0, NULL, NULL);
-  clEnqueueWriteBuffer(command_queue, cl_velocity_x, CL_FALSE, 0,
-		       sizeof(cl_float)*size_global, velocity_x, 0, NULL, NULL);
-  clEnqueueWriteBuffer(command_queue, cl_velocity_y, CL_FALSE, 0,
-		       sizeof(cl_float)*size_global, velocity_y, 0, NULL, NULL);
-  clEnqueueWriteBuffer(command_queue, cl_velocity_z, CL_FALSE, 0,
-		       sizeof(cl_float)*size_global, velocity_z, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_velocity_force_x, CL_FALSE, 0,
+		       sizeof(cl_float)*POINTCNT, force_x, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_velocity_force_y, CL_FALSE, 0,
+		       sizeof(cl_float)*POINTCNT, force_y, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_velocity_force_z, CL_FALSE, 0,
+		       sizeof(cl_float)*POINTCNT, force_z, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_velocity_velocity_x, CL_FALSE, 0,
+		       sizeof(cl_float)*POINTCNT, velocity_x, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_velocity_velocity_y, CL_FALSE, 0,
+		       sizeof(cl_float)*POINTCNT, velocity_y, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_velocity_velocity_z, CL_FALSE, 0,
+		       sizeof(cl_float)*POINTCNT, velocity_z, 0, NULL, NULL);
   clEnqueueNDRangeKernel(command_queue, kernel_velocity, 1, NULL, 
-			 &size_global, &size_local, 0, NULL, NULL);
-  clEnqueueReadBuffer(command_queue, cl_velocity_x, CL_TRUE, 0, 
-		      sizeof(cl_float)*size_global, velocity_x, 0, NULL, NULL);
-  clEnqueueReadBuffer(command_queue, cl_velocity_y, CL_TRUE, 0, 
-		      sizeof(cl_float)*size_global, velocity_y, 0, NULL, NULL);
-  clEnqueueReadBuffer(command_queue, cl_velocity_z, CL_TRUE, 0, 
-		      sizeof(cl_float)*size_global, velocity_z, 0, NULL, NULL);
-  clReleaseMemObject(cl_mass);
-  clReleaseMemObject(cl_force_x);
-  clReleaseMemObject(cl_force_y);
-  clReleaseMemObject(cl_force_z);
-  clReleaseMemObject(cl_velocity_x);
-  clReleaseMemObject(cl_velocity_y);
-  clReleaseMemObject(cl_velocity_z);
+			 &kernel_velocity_global, &kernel_velocity_local, 
+			 0, NULL, NULL);
+  clEnqueueReadBuffer(command_queue, cl_velocity_velocity_x, CL_TRUE, 0, 
+		      sizeof(cl_float)*POINTCNT, velocity_x, 0, NULL, NULL);
+  clEnqueueReadBuffer(command_queue, cl_velocity_velocity_y, CL_TRUE, 0, 
+		      sizeof(cl_float)*POINTCNT, velocity_y, 0, NULL, NULL);
+  clEnqueueReadBuffer(command_queue, cl_velocity_velocity_z, CL_TRUE, 0, 
+		      sizeof(cl_float)*POINTCNT, velocity_z, 0, NULL, NULL);
+  // position
+  clEnqueueWriteBuffer(command_queue, cl_position_velocity_x, CL_FALSE, 0, 
+		       sizeof(cl_float)*POINTCNT, velocity_x, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_position_velocity_y, CL_FALSE, 0, 
+		       sizeof(cl_float)*POINTCNT, velocity_y, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_position_velocity_z, CL_FALSE, 0, 
+		       sizeof(cl_float)*POINTCNT, velocity_z, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_position_position_x, CL_FALSE, 0, 
+		       sizeof(cl_float)*POINTCNT, position_x, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_position_position_y, CL_FALSE, 0, 
+		       sizeof(cl_float)*POINTCNT, position_y, 0, NULL, NULL);
+  clEnqueueWriteBuffer(command_queue, cl_position_position_z, CL_FALSE, 0, 
+		       sizeof(cl_float)*POINTCNT, position_z, 0, NULL, NULL);
+  clEnqueueNDRangeKernel(command_queue, kernel_position, 1, NULL, 
+			 &kernel_position_global, &kernel_position_local, 
+			 0, NULL, NULL);
+  clEnqueueReadBuffer(command_queue, cl_position_position_x, CL_TRUE, 0, 
+		      sizeof(cl_float)*POINTCNT, position_x, 0, NULL, NULL);
+  clEnqueueReadBuffer(command_queue, cl_position_position_y, CL_TRUE, 0, 
+		      sizeof(cl_float)*POINTCNT, position_y, 0, NULL, NULL);
+  clEnqueueReadBuffer(command_queue, cl_position_position_z, CL_TRUE, 0, 
+		      sizeof(cl_float)*POINTCNT, position_z, 0, NULL, NULL);
   for (int i = 0; i < POINTCNT; i++) {
-    position_x[i] += velocity_x[i];
     if (position_x[i] < min.x) min.x = position_x[i];
     if (position_x[i] > max.x) max.x = position_x[i];
-    position_y[i] += velocity_y[i];
     if (position_y[i] < min.y) min.y = position_y[i];
     if (position_y[i] > max.y) max.y = position_y[i];
-    position_z[i] += velocity_z[i];
     if (position_z[i] < min.z) min.z = position_z[i];
     if (position_z[i] > max.z) max.z = position_z[i];
   }
