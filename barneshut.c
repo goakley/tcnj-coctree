@@ -15,10 +15,13 @@ struct BarnesHut {
 };
 
 
-BarnesHut* BarnesHut_malloc(Vector3f bound1, Vector3f bound2) {
+BarnesHut* BarnesHut_malloc(float minx, float miny, float minz,
+			    float maxx, float maxy, float maxz) {
   BarnesHut *bh = malloc(sizeof(BarnesHut));
   if (!bh)
     return NULL;
+  Vector3f bound1 = {minx, miny, minz};
+  Vector3f bound2 = {maxx, maxy, maxz};
   bh->octree_root = OctreeNode3f_malloc(bound1, bound2);
   if (!(bh->octree_root)) {
     free(bh);
@@ -48,11 +51,12 @@ void BarnesHut_free(BarnesHut *bh) {
 }
 
 
-int BarnesHut_add(BarnesHut *bh, Vector3f position, float mass) {
+int BarnesHut_add(BarnesHut *bh, float x, float y, float z, float mass) {
   if (!bh) return 0;
   BarnesHutPoint *bhp = malloc(sizeof(BarnesHutPoint));
   if (!bhp) return 0;
   bhp->mass = mass;
+  Vector3f position = {x,y,z};
   bhp->center_of_mass = position;
   /* Add to the tree */
   OctreeNode3f_insert(bh->octree_root, position, bhp);
@@ -141,9 +145,12 @@ Vector3f BarnesHut__force(OctreeNode3f *node, BarnesHutPoint bhp) {
   }
   return force;
 }
-Vector3f BarnesHut_force(BarnesHut *bh, Vector3f position, float mass) {
-  Vector3f zero = {0,0,0};
-  if (!bh) return zero;
+int BarnesHut_force(BarnesHut *bh, float x, float y, float z, float mass,
+		    float *retx, float *rety, float *retz) {
+  if (!bh) return 0;
+  Vector3f position = {x,y,z};
   BarnesHutPoint pt = {mass, position};
-  return BarnesHut__force(bh->octree_root, pt);
+  Vector3f result = BarnesHut__force(bh->octree_root, pt);
+  *retx = result.x; *rety = result.y; *retz = result.z;
+  return 1;
 }

@@ -149,7 +149,7 @@ void resize(int w, int h) {
 }
 
 /* The radius of each body in the system */
-int bodysize = SIZER*0.01;
+int bodysize = SIZER*0.005;
 /* Whether or not to draw the initialization box and its features */
 int drawbox = 1;
 
@@ -406,11 +406,12 @@ float bound_max_z = SIZER;
 
 void update() {
   /* Create, fill, and finalize a new Barnes-Hut setup */
-  bh = BarnesHut_malloc((Vector3f){bound_min_x,bound_min_y,bound_min_z},
-			(Vector3f){bound_max_x,bound_max_y,bound_max_z});
+  bh = BarnesHut_malloc(bound_min_x,bound_min_y,bound_min_z,
+			bound_max_x,bound_max_y,bound_max_z);
   for (int i = 0; i < POINTCNT; i++) {
-    BarnesHut_add(bh, (Vector3f){position_x[i],position_y[i],position_z[i]}, 
-                  mass[i]);
+    BarnesHut_add(bh, position_x[i], position_y[i], position_z[i], mass[i]);
+    /*BarnesHut_add(bh, (Vector3f){position_x[i],position_y[i],position_z[i]}, 
+      mass[i]);*/
   }
   BarnesHut_finalize(bh);
   /* Clear the bounds of the system; they will be recalculated */
@@ -418,8 +419,10 @@ void update() {
   bound_max_x = bound_max_y = bound_max_z = 0;
   for (int i = 0; i < POINTCNT; i++) {
     /* get the force of body[i] */
-    Vector3f force = BarnesHut_force(bh, (Vector3f){position_x[i],position_y[i],position_z[i]}, mass[i]);
-    force_x[i] = force.x; force_y[i] = force.y; force_z[i] = force.z;
+    BarnesHut_force(bh, position_x[i], position_y[i], position_z[i], mass[i], 
+		    &force_x[i], &force_y[i], &force_z[i]);
+    /*Vector3f force = BarnesHut_force(bh, (Vector3f){position_x[i],position_y[i],position_z[i]}, mass[i]);
+      force_x[i] = force.x; force_y[i] = force.y; force_z[i] = force.z;*/
 #ifndef OPEN_CL_FLAG
     /* calculate velocity and position of body[i] */
     float acceleration_x = force_x[i]/mass[i];
