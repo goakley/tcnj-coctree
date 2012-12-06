@@ -379,6 +379,12 @@ void init() {
   } while (0);
 #endif
 }
+
+clock_t clock_add = 0;
+clock_t clock_final = 0;
+clock_t clock_force = 0;
+clock_t clock_cl = 0;
+
 void deinit() {
 #ifdef OPEN_CL_FLAG
   /* Cleanup all the OpenCL memory */
@@ -397,6 +403,12 @@ void deinit() {
   clReleaseCommandQueue(command_queue);
   clReleaseContext(context);
 #endif
+  clock_t CLOCKY = clock();
+  printf("TOTAL CYCLES: %llu\n", CLOCKY);
+  printf("BH Add Cycles: %llu\n", clock_add);
+  printf("BH Finalize Cycles: %llu\n", clock_final);
+  printf("BH Force Cycles: %llu\n", clock_force);
+  printf("CL Cycles: %llu\n", clock_cl);
   exit(EXIT_SUCCESS);
 }
 
@@ -414,13 +426,18 @@ void update() {
   /* Create, fill, and finalize a new Barnes-Hut setup */
   bh = BarnesHut_malloc(bound_min_x,bound_min_y,bound_min_z,
 			bound_max_x,bound_max_y,bound_max_z);
+  clock_t START = clock();
   for (int i = 0; i < POINTCNT; i++) {
     BarnesHut_add(bh, position_x[i], position_y[i], position_z[i], mass[i]);
   }
+  clock_add += clock()-START;
+  START = clock();
   BarnesHut_finalize(bh);
+  clock_final += clock()-START;
   /* Clear the bounds of the system; they will be recalculated */
   bound_min_x = bound_min_y = bound_min_z = 0;
   bound_max_x = bound_max_y = bound_max_z = 0;
+  START = clock();
   for (int i = 0; i < POINTCNT; i++) {
     /* get the force of body[i] */
     BarnesHut_force(bh, position_x[i], position_y[i], position_z[i], mass[i], 
@@ -446,8 +463,10 @@ void update() {
     if (position_z[i] > bound_max_z) bound_max_z = position_z[i];
 #endif
   }
+  clock_force += clock()-START;
   BarnesHut_free(bh);
   bh = NULL;
+  START = clock();
 #ifdef OPEN_CL_FLAG
   /* Pass the appropriate memory to OpenCL and calculate the mass and velocity 
    * of each body in the system */
@@ -495,6 +514,7 @@ void update() {
     if (position_z[i] > bound_max_z) bound_max_z = position_z[i];
   }
 #endif
+  clock_cl = clock() - START;
   draw();
   calculateFPS();
 }
