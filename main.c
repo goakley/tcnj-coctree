@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include <GL/glut.h>
 #include <GL/gl.h>
 #ifdef OPEN_CL_FLAG
@@ -35,13 +36,18 @@ const char *KERNEL_calc = "__kernel void calc("				\
   "  __global float* position_z,"					\
   "  const unsigned int count) {"					\
   "    int i = get_global_id(0);"					\
-  "    if (i >= count) return;"						\
-  "    velocity_x[i] += force_x[i]/mass[i];"				\
-  "    velocity_y[i] += force_y[i]/mass[i];"				\
-  "    velocity_z[i] += force_z[i]/mass[i];"				\
-  "    position_x[i] += velocity_x[i];"					\
-  "    position_y[i] += velocity_y[i];"					\
-  "    position_z[i] += velocity_z[i];"					\
+  "    if (i < count) {"						\
+  "      velocity_x[i] += force_x[i]/mass[i];"				\
+  "      position_x[i] += velocity_x[i];"				\
+  "    } else if (i < count*2) {"					\
+  "      i -= count;"							\
+  "      velocity_y[i] += force_y[i]/mass[i];"				\
+  "      position_y[i] += velocity_y[i];"				\
+  "    } else if (i < count*3) {"					\
+  "      i -= count*2;"							\
+  "      velocity_z[i] += force_z[i]/mass[i];"				\
+  "      position_z[i] += velocity_z[i];"				\
+  "    }"								\
   "  }";
 
 
@@ -263,9 +269,9 @@ void init() {
     position_x[i] = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
     position_y[i] = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
     position_z[i] = (rand()/((float)RAND_MAX))*SIZER*2 - SIZER;
-    velocity_x[i] = 0.0f;//(rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
-    velocity_y[i] = 0.0f;//(rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
-    velocity_z[i] = 0.0f;//(rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
+    velocity_x[i] = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
+    velocity_y[i] = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
+    velocity_z[i] = (rand()/((float)RAND_MAX))*-20000.0f + 10000.0f;
     force_x[i] = force_y[i] = force_z[i] = 0.0f;
   }
 #ifdef OPEN_CL_FLAG
@@ -321,13 +327,13 @@ void init() {
     }
     clGetKernelWorkGroupInfo(kernel_calc, device, CL_KERNEL_WORK_GROUP_SIZE, 
 			     sizeof(cl_calc_local), &cl_calc_local, NULL);
-    if (cl_calc_local > POINTCNT) cl_calc_local = POINTCNT;
-    cl_calc_global = POINTCNT % cl_calc_local;
+    if (cl_calc_local > POINTCNT*3) cl_calc_local = POINTCNT*3;
+    cl_calc_global = (POINTCNT*3) % cl_calc_local;
     if (cl_calc_global == 0)
-      cl_calc_global = POINTCNT;
+      cl_calc_global = POINTCNT*3;
     else
       cl_calc_global = 
-	cl_calc_local + POINTCNT - cl_calc_global;
+	cl_calc_local + POINTCNT*3 - cl_calc_global;
     printf("%d %d\n", cl_calc_local, cl_calc_global);
     cl_calc_mass = clCreateBuffer(context, CL_MEM_READ_ONLY,
 				  sizeof(cl_float)*POINTCNT, 
@@ -521,7 +527,7 @@ void draw() {
       }
     }
     glTranslatef(position_x[i], position_y[i], position_z[i]);
-    glutSolidSphere(bodysize,3,3);
+    glutSolidSphere(bodysize,4,4);
     glPopMatrix();
     glColor3f(1.0f, 1.0f, 1.0f);
   }
