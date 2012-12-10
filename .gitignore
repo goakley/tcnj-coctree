@@ -2,3 +2,4 @@ java
 java/
 java/*
 *.o
+*.exe
