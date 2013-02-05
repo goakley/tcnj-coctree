@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include "octree.h"
 
-
 OctreeNode3f* OctreeNode3f_malloc(float bound_x1,float bound_y1,float bound_z1,
 				  float bound_x2,float bound_y2,float bound_z2)
 {

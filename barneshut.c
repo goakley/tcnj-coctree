@@ -2,7 +2,6 @@
 #include <math.h>
 #include "barneshut.h"
 
-
 typedef struct BarnesHutPoint {
   float mass;
   float com_x;

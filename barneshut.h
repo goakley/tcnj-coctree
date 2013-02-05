@@ -3,7 +3,6 @@
 
 
 #include "octree.h"
-#include "vectors.h"
 
 
 /*! \brief A BarnesHut simulation

@@ -16,7 +16,7 @@
 
 #define SIZER 1e7
 #define MASS 6e24
-#define _POINTCNT_ 512
+#define _POINTCNT_ 4
 
 const int POINTCNT = _POINTCNT_;
 
@@ -334,7 +334,7 @@ void init() {
     else
       cl_calc_global = 
 	cl_calc_local + POINTCNT*3 - cl_calc_global;
-    printf("%d %d\n", cl_calc_local, cl_calc_global);
+    printf("%zd %zd\n", cl_calc_local, cl_calc_global);
     cl_calc_mass = clCreateBuffer(context, CL_MEM_READ_ONLY,
 				  sizeof(cl_float)*POINTCNT, 
 				  NULL, NULL);
@@ -404,11 +404,11 @@ void deinit() {
   clReleaseContext(context);
 #endif
   clock_t CLOCKY = clock();
-  printf("TOTAL CYCLES: %llu\n", CLOCKY);
-  printf("BH Add Cycles: %llu\n", clock_add);
-  printf("BH Finalize Cycles: %llu\n", clock_final);
-  printf("BH Force Cycles: %llu\n", clock_force);
-  printf("CL Cycles: %llu\n", clock_cl);
+  printf("TOTAL CYCLES: %zu\n", CLOCKY);
+  printf("BH Add Cycles: %zu\n", clock_add);
+  printf("BH Finalize Cycles: %zu\n", clock_final);
+  printf("BH Force Cycles: %zu\n", clock_force);
+  printf("CL Cycles: %zu\n", clock_cl);
   exit(EXIT_SUCCESS);
 }
 
@@ -424,6 +424,8 @@ float bound_max_z = SIZER;
 
 void update() {
   /* Create, fill, and finalize a new Barnes-Hut setup */
+  printf("%f %f %f %f %f %f\n",bound_min_x,bound_min_y,bound_min_z,
+	 bound_max_x,bound_max_y,bound_max_z);
   bh = BarnesHut_malloc(bound_min_x,bound_min_y,bound_min_z,
 			bound_max_x,bound_max_y,bound_max_z);
   clock_t START = clock();
